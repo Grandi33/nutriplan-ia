@@ -1,0 +1,6 @@
+# Nunca subir a Vercel:
+node_modules
+.next
+.env.local
+.env*.local
+devserver.log

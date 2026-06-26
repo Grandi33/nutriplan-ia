@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Colores como canales RGB para que funcionen los modificadores de opacidad
+   de Tailwind (p. ej. bg-primary/40, bg-gold/15). */
+:root {
+  --bg: 247 243 238;
+  --surface: 255 255 255;
+  --surface-2: 251 248 243;
+  --primary: 29 61 40;
+  --primary-soft: 230 239 231;
+  --primary-contrast: 255 255 255;
+  --accent: 224 92 56;
+  --accent-soft: 251 231 223;
+  --gold: 201 148 58;
+  --text: 31 36 32;
+  --muted: 113 113 113;
+  --border: 223 218 209;
+}
+
+.dark {
+  --bg: 15 26 20;
+  --surface: 22 33 16;
+  --surface-2: 27 39 22;
+  --primary: 90 154 110;
+  --primary-soft: 31 51 38;
+  --primary-contrast: 15 26 20;
+  --accent: 239 111 76;
+  --accent-soft: 58 34 24;
+  --gold: 214 168 80;
+  --text: 236 231 223;
+  --muted: 154 163 154;
+  --border: 60 70 62;
+}
+
+* {
+  border-color: rgb(var(--border));
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: rgb(var(--bg));
+  color: rgb(var(--text));
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Scrollbar discreta */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--muted));
+  background-clip: padding-box;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl bg-surface shadow-card border border-line;
+  }
+  .display {
+    font-family: var(--font-serif), ui-serif, Georgia, serif;
+  }
+  .focus-ring {
+    @apply outline-none ring-2 ring-primary/40 ring-offset-2 ring-offset-bg;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  /* Skeleton shimmer */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: rgb(var(--surface-2));
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.18),
+      transparent
+    );
+    animation: shimmer 1.6s infinite;
+  }
+  .dark .skeleton::after {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.06),
+      transparent
+    );
+  }
+}
+
+/* Markdown del chat */
+.prose-chat p {
+  margin: 0 0 0.6em;
+}
+.prose-chat p:last-child {
+  margin-bottom: 0;
+}
+.prose-chat ul,
+.prose-chat ol {
+  margin: 0.4em 0 0.6em;
+  padding-left: 1.2em;
+}
+.prose-chat ul {
+  list-style: disc;
+}
+.prose-chat ol {
+  list-style: decimal;
+}
+.prose-chat li {
+  margin: 0.2em 0;
+}
+.prose-chat strong {
+  font-weight: 700;
+  color: rgb(var(--text));
+}
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3 {
+  font-family: var(--font-serif), serif;
+  margin: 0.4em 0 0.3em;
+  line-height: 1.2;
+}
+.prose-chat code {
+  background: rgb(var(--surface-2));
+  padding: 0.1em 0.35em;
+  border-radius: 6px;
+  font-size: 0.9em;
+}
+.prose-chat a {
+  color: rgb(var(--accent));
+  text-decoration: underline;
+}
