@@ -15,6 +15,7 @@ export const STORAGE_KEYS = {
   chat: 'nutriplan_chat',
   compra: 'nutriplan_compra',
   compraExtras: 'nutriplan_compra_extras',
+  recetas: 'nutriplan_recetas',
   theme: 'nutriplan_theme',
 } as const;
 

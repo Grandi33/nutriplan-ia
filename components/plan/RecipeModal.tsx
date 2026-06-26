@@ -48,12 +48,22 @@ export function RecipeModal({
   const [alternativas, setAlternativas] = useState<Alternativa[] | null>(null);
   const [loadingAlt, setLoadingAlt] = useState(false);
 
-  // Cargar receta detallada al abrir
+  // Cargar receta detallada al abrir (con caché para no volver a pagar
+  // si se reabre el mismo plato).
   useEffect(() => {
     if (!open || !comida) return;
     setReceta(null);
     setAlternativas(null);
     setChecked({});
+
+    const cacheKey = `${STORAGE_KEYS.recetas}:${comida.nombre}`;
+    const cacheada = readLS<RecetaDetallada | null>(cacheKey, null);
+    if (cacheada) {
+      setReceta(cacheada);
+      setLoadingReceta(false);
+      return;
+    }
+
     let cancelled = false;
     setLoadingReceta(true);
     fetch('/api/recipe', {
@@ -70,8 +80,10 @@ export function RecipeModal({
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
-        if (data.receta) setReceta(data.receta);
-        else toast.error(data.error || 'No se pudo cargar la receta.');
+        if (data.receta) {
+          setReceta(data.receta);
+          writeLS(cacheKey, data.receta);
+        } else toast.error(data.error || 'No se pudo cargar la receta.');
       })
       .catch(() => !cancelled && toast.error('Error al cargar la receta.'))
       .finally(() => !cancelled && setLoadingReceta(false));

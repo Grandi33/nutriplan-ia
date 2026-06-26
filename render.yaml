@@ -12,6 +12,9 @@ services:
       # La clave se introduce a mano en el panel de Render (no se sube al repo).
       - key: ANTHROPIC_API_KEY
         sync: false
-      # (Opcional) Modelo de IA. Por defecto la app usa claude-sonnet-4-6.
+      # (Opcional) Modelo principal (plan semanal). Por defecto: claude-sonnet-4-6.
       - key: NUTRIPLAN_MODEL
         value: claude-sonnet-4-6
+      # (Opcional) Modelo barato para recetas/alternativas. Por defecto: Haiku.
+      - key: NUTRIPLAN_MODEL_FAST
+        value: claude-haiku-4-5-20251001

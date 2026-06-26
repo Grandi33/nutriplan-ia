@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { Alternativa, Perfil } from '@/lib/types';
 import {
   getClient,
-  MODELO,
+  MODELO_RAPIDO,
   SYSTEM_NUTRICIONISTA,
   promptAlternativas,
   textoDeMensaje,
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     const client = getClient();
     const msg = await client.messages.create({
-      model: MODELO,
+      model: MODELO_RAPIDO,
       max_tokens: 2500,
       system: SYSTEM_NUTRICIONISTA,
       messages: [{ role: 'user', content: promptAlternativas(comida, perfil) }],

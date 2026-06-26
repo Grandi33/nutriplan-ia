@@ -9,6 +9,11 @@ import { calcularMacros, calcularBMI, LABEL_OBJETIVO, LABEL_ACTIVIDAD } from '@/
 // (p. ej. 'claude-opus-4-8' para máxima calidad).
 export const MODELO = process.env.NUTRIPLAN_MODEL || 'claude-sonnet-4-6';
 
+// Modelo barato para tareas secundarias (recetas, alternativas): Haiku.
+// Mucho más económico y de sobra para estas tareas.
+export const MODELO_RAPIDO =
+  process.env.NUTRIPLAN_MODEL_FAST || 'claude-haiku-4-5-20251001';
+
 let _client: Anthropic | null = null;
 
 /** Cliente perezoso: solo se crea cuando hay clave. */
