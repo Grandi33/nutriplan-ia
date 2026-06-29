@@ -1,5 +1,5 @@
 import type { Perfil, PlanSemanal, MensajeChat } from '@/lib/types';
-import { getClient, MODELO, systemChat } from '@/lib/anthropic';
+import { MODELO, systemChat, streamChatTexto } from '@/lib/ai';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -14,39 +14,26 @@ export async function POST(req: Request) {
   try {
     const { messages, perfil, plan } = (await req.json()) as Body;
 
-    const client = getClient();
     const system = systemChat(perfil, plan);
-
-    const apiMessages = (messages || [])
+    const limpios = (messages || [])
       .filter((m) => m.contenido?.trim())
-      .map((m) => ({ role: m.rol, content: m.contenido }));
-
-    const stream = client.messages.stream({
-      model: MODELO,
-      max_tokens: 2048,
-      system,
-      messages: apiMessages,
-    });
+      .map((m) => ({ rol: m.rol, contenido: m.contenido }));
 
     const encoder = new TextEncoder();
     const readable = new ReadableStream<Uint8Array>({
       async start(controller) {
         try {
-          for await (const event of stream) {
-            if (
-              event.type === 'content_block_delta' &&
-              event.delta.type === 'text_delta'
-            ) {
-              controller.enqueue(encoder.encode(event.delta.text));
-            }
+          for await (const t of streamChatTexto({
+            model: MODELO,
+            system,
+            messages: limpios,
+          })) {
+            controller.enqueue(encoder.encode(t));
           }
           controller.close();
         } catch (e) {
           controller.error(e);
         }
-      },
-      cancel() {
-        stream.abort();
       },
     });
 
@@ -60,7 +47,7 @@ export async function POST(req: Request) {
     const message = err instanceof Error ? err.message : String(err);
     const texto =
       message === 'FALTA_API_KEY'
-        ? 'Falta configurar ANTHROPIC_API_KEY en .env.local.'
+        ? 'Falta configurar GEMINI_API_KEY en .env.local.'
         : 'No se pudo conectar con el nutricionista IA. Inténtalo de nuevo.';
     return new Response(texto, {
       status: 500,

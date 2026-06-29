@@ -1,9 +1,9 @@
 # 🥗 NutriPlan IA
 
-Asistente de dieta personalizado con inteligencia artificial real (Claude / Anthropic).
+Asistente de dieta personalizado con inteligencia artificial real (Google Gemini).
 Genera planes semanales, recetas, lista de la compra y tiene un nutricionista IA con chat en streaming.
 
-Construido con **Next.js 14 (App Router) + TypeScript + Tailwind CSS + Framer Motion + Zustand + Recharts + Anthropic SDK**.
+Construido con **Next.js 14 (App Router) + TypeScript + Tailwind CSS + Framer Motion + Zustand + Recharts + Google GenAI SDK (Gemini)**.
 
 ---
 
@@ -32,13 +32,13 @@ Construido con **Next.js 14 (App Router) + TypeScript + Tailwind CSS + Framer Mo
    npm install
    ```
 
-2. Configura tu clave de Anthropic. Edita el archivo **`.env.local`** (ya existe) y pega tu clave:
+2. Configura tu clave **gratuita** de Google AI Studio. Edita **`.env.local`** y pega tu clave:
 
    ```bash
-   ANTHROPIC_API_KEY=sk-ant-tu-clave-real
+   GEMINI_API_KEY=AIza...tu-clave-real
    ```
 
-   La consigues en https://console.anthropic.com/
+   La consigues gratis en https://aistudio.google.com/app/apikey
 
 3. Arranca el servidor de desarrollo:
 
@@ -76,4 +76,6 @@ La clave de la API **solo** se usa en el servidor (API routes); nunca se expone 
 
 ## 🧠 Modelo
 
-Usa `claude-opus-4-8` para generar planes, recetas, alternativas, análisis y el chat.
+Usa la **API de Google Gemini** (`gemini-2.5-flash`) para generar planes, recetas,
+alternativas, análisis y el chat. La clave (`GEMINI_API_KEY`) es **gratuita**:
+se obtiene en https://aistudio.google.com/app/apikey

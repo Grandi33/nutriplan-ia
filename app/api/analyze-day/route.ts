@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import type { Perfil, PlanSemanal } from '@/lib/types';
 import {
-  getClient,
   MODELO,
   SYSTEM_NUTRICIONISTA,
   promptAnalizarDia,
-  textoDeMensaje,
-} from '@/lib/anthropic';
+  generarTexto,
+} from '@/lib/ai';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -24,20 +23,19 @@ export async function POST(req: Request) {
       );
     }
 
-    const client = getClient();
-    const msg = await client.messages.create({
+    const analisis = await generarTexto({
       model: MODELO,
-      max_tokens: 1200,
       system: SYSTEM_NUTRICIONISTA,
-      messages: [{ role: 'user', content: promptAnalizarDia(dia, perfil) }],
+      prompt: promptAnalizarDia(dia, perfil),
+      maxTokens: 1200,
     });
 
-    return NextResponse.json({ analisis: textoDeMensaje(msg.content).trim() });
+    return NextResponse.json({ analisis: analisis.trim() });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (message === 'FALTA_API_KEY') {
       return NextResponse.json(
-        { error: 'Falta configurar ANTHROPIC_API_KEY en .env.local.' },
+        { error: 'Falta configurar GEMINI_API_KEY en .env.local.' },
         { status: 500 }
       );
     }

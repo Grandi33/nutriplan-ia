@@ -1,49 +1,92 @@
 import 'server-only';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
 import type { Perfil, PlanSemanal } from '@/lib/types';
-import { calcularMacros, calcularBMI, LABEL_OBJETIVO, LABEL_ACTIVIDAD } from '@/lib/calculations';
+import {
+  calcularMacros,
+  calcularBMI,
+  LABEL_OBJETIVO,
+  LABEL_ACTIVIDAD,
+} from '@/lib/calculations';
 
-// Modelo por defecto. Sonnet 4.6: rápido, económico y de gran calidad,
-// ideal para uso diario y para el límite de 60s del hosting gratuito.
-// Se puede cambiar con la variable de entorno NUTRIPLAN_MODEL
-// (p. ej. 'claude-opus-4-8' para máxima calidad).
-export const MODELO = process.env.NUTRIPLAN_MODEL || 'claude-sonnet-4-6';
-
-// Modelo barato para tareas secundarias (recetas, alternativas): Haiku.
-// Mucho más económico y de sobra para estas tareas.
+// Modelo principal (plan semanal): necesita salida grande → Gemini 2.5 Flash.
+export const MODELO = process.env.NUTRIPLAN_MODEL || 'gemini-2.5-flash';
+// Modelo rápido/barato para recetas y alternativas.
 export const MODELO_RAPIDO =
-  process.env.NUTRIPLAN_MODEL_FAST || 'claude-haiku-4-5-20251001';
+  process.env.NUTRIPLAN_MODEL_FAST || 'gemini-2.5-flash';
 
-let _client: Anthropic | null = null;
+let _client: GoogleGenAI | null = null;
+
+function apiKey(): string | undefined {
+  return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+}
 
 /** Cliente perezoso: solo se crea cuando hay clave. */
-export function getClient(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error('FALTA_API_KEY');
-  }
-  if (!_client) {
-    _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  }
+export function getClient(): GoogleGenAI {
+  const key = apiKey();
+  if (!key) throw new Error('FALTA_API_KEY');
+  if (!_client) _client = new GoogleGenAI({ apiKey: key });
   return _client;
 }
 
 export function hayApiKey(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+  return Boolean(apiKey());
 }
 
 // ----------------------------------------------------------------------------
-// Prompt de sistema (nutricionista)
+// Llamadas a Gemini
 // ----------------------------------------------------------------------------
 
-export const SYSTEM_NUTRICIONISTA = `Eres un nutricionista y dietista clínico con 15 años de experiencia especializado en nutrición mediterránea y deportiva. Generas planes de dieta de máxima calidad: variados, deliciosos, con recetas reales de la gastronomía española y mediterránea, nutricionalmente equilibrados y 100% prácticos de preparar en casa.
+/** Generación de un solo turno. Devuelve el texto. */
+export async function generarTexto(p: {
+  model: string;
+  system: string;
+  prompt: string;
+  maxTokens?: number;
+  json?: boolean;
+}): Promise<string> {
+  const ai = getClient();
+  const res = await ai.models.generateContent({
+    model: p.model,
+    contents: p.prompt,
+    config: {
+      systemInstruction: p.system,
+      maxOutputTokens: p.maxTokens ?? 4000,
+      temperature: 0.85,
+      ...(p.json ? { responseMimeType: 'application/json' } : {}),
+    },
+  });
+  return res.text ?? '';
+}
 
-Principios:
-- Recetas reales, sabrosas y factibles en una cocina doméstica española.
-- Respeta SIEMPRE las restricciones, alergias y alimentos que no gustan.
-- Prioriza alimentos de temporada y el presupuesto indicado.
-- Cantidades realistas y porciones coherentes con el objetivo calórico.
-- Variedad a lo largo de la semana: no repitas el mismo plato.
-- Responde siempre en español de España.`;
+/** Chat con streaming. Va devolviendo trozos de texto. */
+export async function* streamChatTexto(p: {
+  model: string;
+  system: string;
+  messages: { rol: 'user' | 'assistant'; contenido: string }[];
+}): AsyncGenerator<string> {
+  const ai = getClient();
+  const contents = p.messages
+    .filter((m) => m.contenido?.trim())
+    .map((m) => ({
+      role: m.rol === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.contenido }],
+    }));
+
+  const stream = await ai.models.generateContentStream({
+    model: p.model,
+    contents,
+    config: {
+      systemInstruction: p.system,
+      maxOutputTokens: 2048,
+      temperature: 0.9,
+    },
+  });
+
+  for await (const chunk of stream) {
+    const t = chunk.text;
+    if (t) yield t;
+  }
+}
 
 // ----------------------------------------------------------------------------
 // Utilidades
@@ -52,7 +95,6 @@ Principios:
 /** Extrae el primer bloque JSON válido de un texto del modelo. */
 export function extraerJSON<T>(texto: string): T {
   let limpio = texto.trim();
-  // quitar fences ```json ... ```
   limpio = limpio.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
 
   const primerObj = limpio.indexOf('{');
@@ -74,16 +116,22 @@ export function extraerJSON<T>(texto: string): T {
   return JSON.parse(fragmento) as T;
 }
 
-/** Devuelve solo el texto concatenado de un mensaje del SDK. */
-export function textoDeMensaje(content: Anthropic.Message['content']): string {
-  return content
-    .filter((b) => b.type === 'text')
-    .map((b) => ('text' in b ? b.text : ''))
-    .join('');
-}
+// ----------------------------------------------------------------------------
+// Prompt de sistema (nutricionista)
+// ----------------------------------------------------------------------------
+
+export const SYSTEM_NUTRICIONISTA = `Eres un nutricionista y dietista clínico con 15 años de experiencia especializado en nutrición mediterránea y deportiva. Generas planes de dieta de máxima calidad: variados, deliciosos, con recetas reales de la gastronomía española y mediterránea, nutricionalmente equilibrados y 100% prácticos de preparar en casa.
+
+Principios:
+- Recetas reales, sabrosas y factibles en una cocina doméstica española.
+- Respeta SIEMPRE las restricciones, alergias y alimentos que no gustan.
+- Prioriza alimentos de temporada y el presupuesto indicado.
+- Cantidades realistas y porciones coherentes con el objetivo calórico.
+- Variedad a lo largo de la semana: no repitas el mismo plato.
+- Responde siempre en español de España.`;
 
 // ----------------------------------------------------------------------------
-// Resumen del perfil en lenguaje natural (reutilizable en varios prompts)
+// Resumen del perfil en lenguaje natural
 // ----------------------------------------------------------------------------
 
 export function describirPerfil(perfil: Perfil): string {
@@ -168,7 +216,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin texto adicional, sin markdo
     "agua_litros": number,
     "distribucionMacros": { "proteinas_pct": number, "carbos_pct": number, "grasas_pct": number }
   },
-  "valoracion": number (1-5, valoración del plan),
+  "valoracion": number,
   "dias": [
     {
       "nombre": "Lunes",
@@ -189,7 +237,6 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin texto adicional, sin markdo
       "nota_dia": "consejo del nutricionista para ese día",
       "nivel_dificultad": "fácil" | "media" | "elaborado"
     }
-    // ... los 7 días (Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo)
   ],
   "lista_compra": {
     "proteinas": [string],
@@ -205,11 +252,11 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin texto adicional, sin markdo
 }
 
 Reglas:
-- Incluye los 7 días completos.
-- PRIORIDAD MÁXIMA: cada día debe alcanzar los objetivos diarios indicados arriba (calorías y macros). Ajusta porciones hasta cuadrarlos; un día que se queda corto de calorías o carbohidratos es un ERROR.
+- Incluye los 7 días completos (Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo).
+- PRIORIDAD MÁXIMA: cada día debe alcanzar los objetivos diarios indicados arriba. Un día corto de calorías o carbohidratos es un ERROR.
 - Cada comida con un emoji apetecible y tags útiles (p. ej. "alto en proteína", "sin gluten", "batch cooking").
 - Las cantidades de "lista_compra" deben cubrir toda la semana.
-- Antes de dar cada día, SUMA las comidas y comprueba que "total_calorias/proteinas/carbos/grasas" coinciden con esa suma y caen dentro de la tolerancia.
+- Antes de dar cada día, SUMA las comidas y comprueba que los totales coinciden y caen dentro de la tolerancia.
 - No repitas platos a lo largo de la semana.`;
 }
 
@@ -283,7 +330,7 @@ Da un análisis en markdown (máx. 180 palabras) con: qué tal está equilibrado
 export function systemChat(perfil: Perfil | null, plan: PlanSemanal | null): string {
   let s = `${SYSTEM_NUTRICIONISTA}
 
-Estás en un chat con la persona usuaria. Responde de forma directa, cercana y práctica, en markdown cuando ayude (negritas, listas). No muestres tu razonamiento interno; ve directo a la respuesta útil.`;
+Estás en un chat con la persona usuaria. Responde de forma directa, cercana y práctica, en markdown cuando ayude (negritas, listas). Ve directo a la respuesta útil.`;
 
   if (perfil) {
     s += `\n\n--- PERFIL DEL USUARIO ---\n${describirPerfil(perfil)}`;

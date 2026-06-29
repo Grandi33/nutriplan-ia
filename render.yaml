@@ -9,12 +9,12 @@ services:
     startCommand: npm start
     autoDeploy: true
     envVars:
-      # La clave se introduce a mano en el panel de Render (no se sube al repo).
-      - key: ANTHROPIC_API_KEY
+      # Clave GRATIS de Google AI Studio (Gemini). Se introduce a mano en Render.
+      - key: GEMINI_API_KEY
         sync: false
-      # (Opcional) Modelo principal (plan semanal). Por defecto: claude-sonnet-4-6.
+      # (Opcional) Modelo principal (plan semanal). Por defecto: gemini-2.5-flash.
       - key: NUTRIPLAN_MODEL
-        value: claude-sonnet-4-6
-      # (Opcional) Modelo barato para recetas/alternativas. Por defecto: Haiku.
+        value: gemini-2.5-flash
+      # (Opcional) Modelo para recetas/alternativas. Por defecto: gemini-2.5-flash.
       - key: NUTRIPLAN_MODEL_FAST
-        value: claude-haiku-4-5-20251001
+        value: gemini-2.5-flash

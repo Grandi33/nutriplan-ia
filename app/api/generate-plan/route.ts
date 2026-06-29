@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { Perfil, PlanSemanal } from '@/lib/types';
 import {
-  getClient,
   MODELO,
   SYSTEM_NUTRICIONISTA,
   promptPlanSemanal,
-  textoDeMensaje,
+  generarTexto,
   extraerJSON,
-} from '@/lib/anthropic';
+} from '@/lib/ai';
 import { calcularMacros } from '@/lib/calculations';
 import { uid } from '@/lib/utils';
 
@@ -26,18 +25,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const client = getClient();
-
-    // Salida grande → usamos streaming para evitar timeouts de HTTP.
-    const stream = client.messages.stream({
+    const texto = await generarTexto({
       model: MODELO,
-      max_tokens: 20000,
       system: SYSTEM_NUTRICIONISTA,
-      messages: [{ role: 'user', content: promptPlanSemanal(perfil) }],
+      prompt: promptPlanSemanal(perfil),
+      maxTokens: 32000,
+      json: true,
     });
-
-    const msg = await stream.finalMessage();
-    const texto = textoDeMensaje(msg.content);
     const parsed = extraerJSON<PlanGenerado>(texto);
 
     // Forzamos que los OBJETIVOS mostrados sean los calculados (Mifflin-St Jeor),
@@ -77,7 +71,7 @@ function manejarError(err: unknown) {
     return NextResponse.json(
       {
         error:
-          'Falta configurar ANTHROPIC_API_KEY en .env.local. Añade tu clave y reinicia el servidor.',
+          'Falta configurar GEMINI_API_KEY en .env.local. Añade tu clave de Google AI Studio y reinicia el servidor.',
       },
       { status: 500 }
     );

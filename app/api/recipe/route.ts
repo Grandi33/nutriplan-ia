@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { RecetaDetallada } from '@/lib/types';
 import {
-  getClient,
   MODELO_RAPIDO,
   SYSTEM_NUTRICIONISTA,
   promptReceta,
-  textoDeMensaje,
+  generarTexto,
   extraerJSON,
-} from '@/lib/anthropic';
+} from '@/lib/ai';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -21,21 +20,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Falta la comida.' }, { status: 400 });
     }
 
-    const client = getClient();
-    const msg = await client.messages.create({
+    const texto = await generarTexto({
       model: MODELO_RAPIDO,
-      max_tokens: 3000,
       system: SYSTEM_NUTRICIONISTA,
-      messages: [{ role: 'user', content: promptReceta(comida) }],
+      prompt: promptReceta(comida),
+      maxTokens: 3000,
+      json: true,
     });
-
-    const receta = extraerJSON<RecetaDetallada>(textoDeMensaje(msg.content));
+    const receta = extraerJSON<RecetaDetallada>(texto);
     return NextResponse.json({ receta });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (message === 'FALTA_API_KEY') {
       return NextResponse.json(
-        { error: 'Falta configurar ANTHROPIC_API_KEY en .env.local.' },
+        { error: 'Falta configurar GEMINI_API_KEY en .env.local.' },
         { status: 500 }
       );
     }
