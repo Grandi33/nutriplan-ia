@@ -1,5 +1,12 @@
 import { create } from 'zustand';
-import type { Perfil, PlanSemanal, EstadoCompra } from '@/lib/types';
+import type {
+  Perfil,
+  PlanSemanal,
+  EstadoCompra,
+  Comida,
+  TipoComida,
+  NombreDia,
+} from '@/lib/types';
 import { readLS, writeLS, removeLS } from '@/lib/storage';
 import { STORAGE_KEYS, MAX_HISTORIAL } from '@/lib/constants';
 
@@ -13,6 +20,7 @@ interface NutriState {
   hydrate: () => void;
   setProfile: (p: Perfil) => void;
   setPlan: (plan: PlanSemanal, addToHistory?: boolean) => void;
+  reemplazarComida: (dia: NombreDia, tipo: TipoComida, nueva: Comida) => void;
   restorePlan: (id: string) => void;
   deletePlan: (id: string) => void;
   setCompra: (estado: EstadoCompra) => void;
@@ -58,6 +66,30 @@ export const useNutriStore = create<NutriState>((set, get) => ({
       writeLS(STORAGE_KEYS.history, history);
     }
     set({ plan, history, compra: {} });
+  },
+
+  reemplazarComida: (diaNombre, tipo, nueva) => {
+    const plan = get().plan;
+    if (!plan) return;
+    const dias = plan.dias.map((d) => {
+      if (d.nombre !== diaNombre) return d;
+      const comidas = { ...d.comidas };
+      comidas[tipo] = nueva;
+      const vals = Object.values(comidas).filter(Boolean) as Comida[];
+      const sum = (k: keyof Comida) =>
+        Math.round(vals.reduce((s, c) => s + (Number(c[k]) || 0), 0));
+      return {
+        ...d,
+        comidas,
+        total_calorias: sum('calorias'),
+        total_proteinas: sum('proteinas'),
+        total_carbos: sum('carbos'),
+        total_grasas: sum('grasas'),
+      };
+    });
+    const next = { ...plan, dias };
+    writeLS(STORAGE_KEYS.plan, next);
+    set({ plan: next });
   },
 
   restorePlan: (id) => {

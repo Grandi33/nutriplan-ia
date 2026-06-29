@@ -30,7 +30,10 @@ export function DayView({
   resumen: ResumenPlan;
   perfil: Perfil | null;
 }) {
-  const [seleccion, setSeleccion] = useState<Comida | null>(null);
+  const [seleccion, setSeleccion] = useState<{
+    comida: Comida;
+    tipo: TipoComida;
+  } | null>(null);
   const [analisis, setAnalisis] = useState<string | null>(null);
   const [analizando, setAnalizando] = useState(false);
 
@@ -122,7 +125,7 @@ export function DayView({
             key={tipo}
             tipo={tipo}
             comida={comida}
-            onClick={() => setSeleccion(comida)}
+            onClick={() => setSeleccion({ comida, tipo })}
           />
         ))}
       </motion.div>
@@ -130,7 +133,9 @@ export function DayView({
       <RecipeModal
         open={!!seleccion}
         onClose={() => setSeleccion(null)}
-        comida={seleccion}
+        comida={seleccion?.comida ?? null}
+        tipo={seleccion?.tipo}
+        diaNombre={dia.nombre}
         perfil={perfil}
       />
     </div>

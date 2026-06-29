@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { Loader2, Plus, RefreshCcw, ShoppingCart, ChefHat } from 'lucide-react';
+import { Loader2, Plus, RefreshCcw, ShoppingCart, ChefHat, ArrowRightLeft } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -13,9 +13,12 @@ import type {
   Perfil,
   RecetaDetallada,
   Alternativa,
+  TipoComida,
+  NombreDia,
 } from '@/lib/types';
 import { readLS, writeLS } from '@/lib/storage';
 import { STORAGE_KEYS } from '@/lib/constants';
+import { useNutriStore } from '@/lib/store';
 
 // Gradiente temático determinista a partir del nombre (placeholder de "foto").
 function gradiente(nombre: string): string {
@@ -36,12 +39,17 @@ export function RecipeModal({
   onClose,
   comida,
   perfil,
+  tipo,
+  diaNombre,
 }: {
   open: boolean;
   onClose: () => void;
   comida: Comida | null;
   perfil: Perfil | null;
+  tipo?: TipoComida;
+  diaNombre?: NombreDia;
 }) {
+  const reemplazarComida = useNutriStore((s) => s.reemplazarComida);
   const [receta, setReceta] = useState<RecetaDetallada | null>(null);
   const [loadingReceta, setLoadingReceta] = useState(false);
   const [checked, setChecked] = useState<Record<number, boolean>>({});
@@ -129,6 +137,27 @@ export function RecipeModal({
     const merged = Array.from(new Set([...prev, ...items]));
     writeLS(STORAGE_KEYS.compraExtras, merged);
     toast.success('Ingredientes añadidos a tu lista 📋');
+  }
+
+  function elegirAlternativa(alt: Alternativa) {
+    if (!comida || !tipo || !diaNombre) return;
+    const nueva: Comida = {
+      nombre: alt.nombre,
+      descripcion_breve: alt.descripcion_breve,
+      ingredientes: [],
+      calorias: alt.calorias,
+      proteinas: alt.proteinas,
+      carbos: alt.carbos,
+      grasas: alt.grasas,
+      fibra: comida.fibra,
+      tiempo_prep: alt.tiempo_prep,
+      tiempo_coccion: '',
+      tags: comida.tags ?? [],
+      emoji: alt.emoji,
+    };
+    reemplazarComida(diaNombre, tipo, nueva);
+    toast.success(`Cambiado por "${alt.nombre}" ✅`);
+    onClose();
   }
 
   const info = receta?.info_nutricional ?? {
@@ -290,9 +319,12 @@ export function RecipeModal({
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">
+              <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
                 Alternativas similares
               </h3>
+              <p className="mb-2 text-xs text-muted">
+                Toca una para cambiar este plato en tu plan 👇
+              </p>
               {loadingAlt ? (
                 <div className="flex items-center gap-2 text-sm text-muted">
                   <Loader2 className="h-4 w-4 animate-spin" /> Buscando
@@ -301,16 +333,24 @@ export function RecipeModal({
               ) : (
                 <div className="space-y-2">
                   {alternativas?.map((alt, i) => (
-                    <div
+                    <button
                       key={i}
-                      className="rounded-xl border border-line bg-surface-2 p-3"
+                      type="button"
+                      onClick={() => elegirAlternativa(alt)}
+                      className="group w-full rounded-xl border border-line bg-surface-2 p-3 text-left transition-colors hover:border-primary hover:bg-primary-soft"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl" aria-hidden>
-                          {alt.emoji}
-                        </span>
-                        <span className="display text-base text-ink">
-                          {alt.nombre}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl" aria-hidden>
+                            {alt.emoji}
+                          </span>
+                          <span className="display text-base text-ink">
+                            {alt.nombre}
+                          </span>
+                        </div>
+                        <span className="flex flex-shrink-0 items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-contrast opacity-90 transition-opacity group-hover:opacity-100">
+                          <ArrowRightLeft className="h-3.5 w-3.5" />
+                          Elegir
                         </span>
                       </div>
                       <p className="mt-1 text-sm text-muted">
@@ -328,7 +368,7 @@ export function RecipeModal({
                         <Plus className="h-3.5 w-3.5 flex-shrink-0" />
                         {alt.por_que}
                       </p>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
