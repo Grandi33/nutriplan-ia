@@ -52,6 +52,9 @@ export async function generarTexto(p: {
       systemInstruction: p.system,
       maxOutputTokens: p.maxTokens ?? 4000,
       temperature: 0.85,
+      // Desactivamos el "thinking" de Gemini 2.5: si no, consume el
+      // presupuesto de salida y la respuesta vuelve vacía.
+      thinkingConfig: { thinkingBudget: 0 },
       ...(p.json ? { responseMimeType: 'application/json' } : {}),
     },
   });
@@ -79,6 +82,7 @@ export async function* streamChatTexto(p: {
       systemInstruction: p.system,
       maxOutputTokens: 2048,
       temperature: 0.9,
+      thinkingConfig: { thinkingBudget: 0 },
     },
   });
 
